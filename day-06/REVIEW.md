@@ -160,11 +160,17 @@ Note `RefrigeratedTruck` near the bottom — from your "later" list, it needs **
 ## Grill
 
 1. I said "the code you're least sure of is the code that needs the assert." **Give me the counter-argument** — when is testing the confident part the better use of ten minutes?
+when the time alpse in an interview and needs some asserst to showcase code so at that time it would be usefull
 2. My `Rental` is frozen, so `return_vehicle` builds a new one and swaps it into the list. **Name one thing that breaks** if someone holds a reference to the old `Rental`.
+eveyrtime rewriting the whole data once more which is more cost. and invoice gets differed
 3. Requirement 7 caps the late fee at base cost. **Why base and not payable?** Argue the business case, then say which is easier to explain to a customer.
+basecost is without discount and payable is with discount . so as we are not cosnidering with seasonal discounts or any we can keep base cost
 4. You mutate `order.payable` to fold in the late fee. I keep `payable` as a computed property. **What does mine cost me**, and when would yours be right?
+yours is computed eveyrtine . mine only computed when there is a change. if i didnt change me code in other changing factors of paybale my code fails here
 5. `RefrigeratedTruck` in my rewrite extends `CargoVehicle` and adds `charge`. **Why not extend both `CargoVehicle` and `ElectricVehicle`?** What goes wrong?
+we cant extend both because if we add charge it would be already a protocol check . no need extension
 6. Your "already rented" check compares `order.return_date >= start_date`. **Construct the booking sequence** where that check gives the wrong answer, using dates only.
+yes lets say a vehicle is booke for next whole month and this month its none booked . but if i want to book for this month its not possible 
 
 ---
 
