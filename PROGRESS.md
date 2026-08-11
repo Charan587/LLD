@@ -16,7 +16,8 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | W1b | Asserts on status flags (`== True`) instead of on values | Day 2 | **improving** — D4 all asserts check values |
 | W2 | Doesn't model the nouns in the problem statement; primitives where objects belong | Day 1 | **improving** — D2 modelled correctly; now over-models (classes where data suffices) |
 | W9 | Puts a rule on the wrong object (`is_dead` in `Game`, not `Character`) | Day 2 | **open** |
-| W10 | **Submits without running the file.** D3 asserts added in the final save, never executed | Day 3 | **CLOSED** — D4 ran clean, output pasted |
+| W10 | **Submits without running the file** | Day 3 | **REOPENED (D7).** Clean D4-D6. D7: `if __name__ == "main":` — silent `exit 0`, zero asserts ran, submitted with empty output. Fix: print at the end and *look*; use a deliberate `assert False` to prove tests execute |
+| W17 | Builds the pattern correctly, never names it | Day 2 | **open — 5 occurrences.** D7 file never contains the word "Strategy" despite the spec requiring it |
 | W1c | Asserts absence-of-exception (`raises(...) is None`) instead of the returned value | Day 4 | **open** |
 | W13 | **Tests the part he's confident about, skips the part he's unsure of** | Day 4 | **open — regressed.** D5 9/10; D6 **4/15**, and all three bugs sat in the unwritten 11 |
 | W14 | One field doing two jobs / terms not captured at event time | Day 4 | **split verdict.** D6 got requirement 10 right *by construction* (first time) — then reintroduced the bug in the same file via `return_date` (due → actual). 5 appearances: D2 `baseHealth`, D4 `amount_used`, D5 loan policy, D6 req-10 ✓, D6 `return_date` ✗ |
@@ -43,6 +44,7 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | 04 | Payment Methods | LSP + ISP | Python | 2 | 4 | 4 | 3 | 2 | **15** / 25 |
 | 05 | Library Lending | DIP | Python | 2 | 4 | 4 | 3 | 3 | **16** / 25 |
 | 06 | Vehicle Rental | consolidation | Python | 2 | 4 | 4 | 2 | 3 | **15** / 25 |
+| 07 | Ride Fare Estimation | Strategy | Python | 1 | 3 | 3 | 2 | 1 | **10** / 25 |
 
 Java for day 1: not submitted.
 
@@ -538,6 +540,70 @@ Not "he skips asserts" — **he tests the part he is confident about and skips t
 - **W14** — requirement 10 is now its own numbered assert (#15), with the three prior appearances named so he sees the pattern rather than the instance.
 
 No new principle introduced. Every trap is one he has already met and, in most cases, already got wrong once.
+
+---
+
+---
+
+## Day 07 — Ride Fare Estimation
+
+- **Date issued:** 2026-08-10
+- **Topic:** Strategy (first named pattern)
+- **Problem:** `day-07/PROBLEM.md`
+- **Status:** reviewed 2026-08-11. Python only. **`exit 0`, no output — the main block never executed.**
+- **Submitted (verbatim):** `day-07/solution.submitted.py` · **Review:** `day-07/REVIEW.md` · **Rewrite:** `day-07/rewrite.py` (passes)
+
+### Headline: `if __name__ == "main":`
+
+Missing underscores. Python defined the classes, evaluated a `False` comparison, exited 0. **Every assert skipped.** He wrote ~9 of 13 asserts and none ran. Submitted after being asked to paste terminal output — the output was empty.
+
+**`exit 0` ≠ tests passed.** Countermeasure taught: always print at the end and *look* for it; while developing, drop an `assert False` in and confirm you see it fail.
+
+### What he got right — the day's actual topic
+
+**Strategy structure correct.** `Algorithm` base, four implementations, uniform `calculate(ride)`, dict-of-algorithms, `Booking` owns surge + floor. **Requirement 4 (graded) satisfied by design** — algorithms genuinely know nothing about surge or the ₹60 minimum. That was the boundary targeting W16 and he held it.
+
+### The four bugs behind the guard
+
+```
+dataclass fields: []   Ride(10,25,"AUTO") -> TypeError: takes 1 positional argument but 4 were given
+2 per_minute.calculate(r1)  -> 20   expected 50   WRONG
+6 booking.calculate(r1)     -> TypeError: 'PerMinuteAlgo' object is not callable
+algorithm-in-dict check: False  <-- checks KEYS, which are strings
+```
+
+1. **`km = int` instead of `km: int`** — assignment, not annotation, so `@dataclass` sees zero fields and generates a no-arg `__init__`. Fails silently at definition, bites at construction. (Day 1's `Hotel` had `name = str` too — harmless there, no `@dataclass`.)
+2. **`PerMinuteAlgo` uses `ride.km`** — copy-paste from `PerKmAlgo`. Second-order: assert 7 (Ride B → exactly 60) would have **passed for the wrong reason** — `5×2=10` floored to 60, instead of `30×2=60` *being* the minimum. The bug would have hidden inside the very assert designed to catch the boundary. Rewrite separates them via `minimum_applied`.
+3. **`algorithm(ride)`** instead of `algorithm.calculate(ride)` — on every path, so no fare could ever be computed.
+4. **`algorithm in self.algorithms`** tests dict *keys* (strings), always `False`, so the explicit-algorithm argument was **silently ignored**. Asserts 8-9 would have discarded it even after bug 3 was fixed.
+
+Also: airport passed as a `type_of_run` magic string rather than read off the ride, so precedence is implied by statement order rather than stated.
+
+### Not written
+
+Asserts 10 (selection by type), 11 (airport override), **12 (swap on an existing ride — the day's twist)**, 13 (breakdown). No receipt/breakdown built.
+
+### Pattern never named
+
+The word "Strategy" does not appear in the file. Requirement 3 asked for it plus what varies/stays the same plus one SOLID principle. **Fifth time he has built a pattern correctly and not named it.**
+
+### Why this framing
+
+He has effectively built Strategy since day 2 (weapons, discounts, pricing rules) without the name. To make today teach something new rather than repeat days 3/6, the problem inverts the composition: **days 3 and 6 applied *all* rules and summed them; today exactly one algorithm applies**, is selected at runtime by ride type, and must be swappable on an existing ride (assert 12).
+
+### The graded design constraint
+
+Requirement 4: **an algorithm must not know about surge or the minimum fare.** Assert 5 tests it directly — calling per-minute on Ride A must return 50, not 60 (floored) and not 75 (surged). This is the Strategy/context boundary made testable, and it targets **W16** (method returns a running total instead of the value its name promises — 3 occurrences: D3 `apply_discount`, D4 `fee()`, D6 `return_vehicle`).
+
+### Targeting
+
+- **W13 (regressed to 4/15 on D6)** — 13 numbered asserts, plus explicit instruction: one happy-path canary first (the Q1 grill answer), then straight at the uncertain parts.
+- **W15** — "every assert starts from fresh state, write the helper first."
+- **W4 (6 days running)** — assert 7 is Ride B at *exactly* ₹60, the minimum. Not below, not floored. Assert 9 checks surge-before-floor ordering.
+- **W16** — assert 5, as above.
+- Selection logic (asserts 10-11, with the airport override) deliberately seeds day 8's Factory Method.
+
+Numbers pre-computed: 120 / 50 / 175 / 500 base, 262.5 and 75 with surge. Whole assert block writable before any class exists.
 
 ---
 
