@@ -1,4 +1,64 @@
-"""Day 1 — interview-grade rewrite. Compare against solution.submitted.py."""
+"""Day 1 — Hotel Room Booking. Interview-grade rewrite.
+
+═══════════════════════════════════════════════════════════════════════════
+INTERVIEW WALKTHROUGH — what you say out loud, in order
+═══════════════════════════════════════════════════════════════════════════
+
+1. READ-BACK (~20s)
+   "A hotel with rooms; each room has a number, a type and a nightly price.
+    Guests book date ranges. I must stop double-bookings, price a stay, and
+    search free rooms by type."
+
+2. CLARIFYING QUESTIONS (3, not 10)
+   - "Is checkout day occupied? i.e. can 1st-3rd and 3rd-5th both exist?"
+     -> this single answer decides every comparison operator in the file
+   - "How is a booking identified for cancellation — a reference, or the
+      room plus dates?"
+   - "In-memory, or should I assume persistence and concurrency?"
+
+3. HOW I FOUND THE CLASSES
+   Underline the nouns: hotel, room, room type, price, guest, booking, date range.
+     room        -> has number, type, price          -> Room       (class)
+     booking     -> has identity, dates, a guest     -> Booking    (class)
+     room type   -> a fixed small set                -> RoomType   (enum)
+     guest       -> only a name today                -> str, and I say so
+     date range  -> two dates on the Booking         -> no class yet
+   Circle the verbs: add, check availability, book, cancel, search, price.
+   Whoever owns the data owns the method: Hotel owns rooms and bookings.
+
+   THE TRAP HERE: if Room isn't a class, room type and per-room price have
+   nowhere to live, and "find rooms of a given type" silently becomes
+   unimplementable. A dropped noun is a dropped requirement.
+
+4. ASSUMPTIONS
+   - Half-open [check_in, check_out): checkout day is free. Back-to-back is legal.
+   - Bookings get a generated integer id; cancel is by id, O(1).
+   - Failure raises ValueError; the caller decides how to present it.
+   - Single-threaded, in-memory.
+
+5. THE DESIGN I REJECTED
+   "Storing rooms as bare ints with a dict of booked date ranges. It works
+    for availability, but there's nowhere to hang a room type or a per-room
+    price, so requirement 5 can't be built. Also I'd have enumerated the
+    overlap cases by hand and missed one."
+
+6. THE DESIGN + WHAT MATTERS
+   "No pattern needed — this is plain modelling. The one thing I'd highlight
+    is overlaps() as a named function rather than inline conditions: two
+    comparisons, derived by negating 'when do they NOT overlap', so there's
+    no case to forget. Room is frozen so a price change can't retroactively
+    reprice past bookings."
+
+7. LIMITS I'D VOLUNTEER
+   - "Linear scan over bookings. Fine for a hotel, wrong at Airbnb scale —
+      there I'd want an index on (room_id, check_in) or an interval tree."
+   - "Nothing is thread-safe; two concurrent bookings of one room would need
+      a per-room lock."
+   - "Seasonal pricing doesn't belong on Room — it changes weekly while the
+      room number doesn't. That wants a rate calendar."
+
+═══════════════════════════════════════════════════════════════════════════
+"""
 
 from dataclasses import dataclass, field
 from datetime import date

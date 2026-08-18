@@ -1,10 +1,63 @@
-"""Day 6 — interview-grade rewrite.
+"""Day 6 — Vehicle Rental. Interview-grade rewrite.
 
-Your rent path is kept — discounts as classes returning amounts, terms captured
-on the Order, clock/notifier injected. All of that was right.
+═══════════════════════════════════════════════════════════════════════════
+INTERVIEW WALKTHROUGH — what you say out loud, in order
+═══════════════════════════════════════════════════════════════════════════
 
-Changed: the return path (fee vs total, cap on base, due date preserved),
-Bike/Car as data, an Invoice, and the eleven asserts that were never written.
+1. READ-BACK (~20s)
+   "A fleet with different rates and different capabilities — only electric
+    cars charge, only trucks carry cargo. Rentals with stacking discounts,
+    late fees capped at base cost, a reminder, and an invoice."
+
+2. CLARIFYING QUESTIONS
+   - "Does 7 days qualify for the long-rental discount, or is it 8+?"
+   - "If we raise a vehicle's rate mid-rental, does the customer's price
+      change?" -> the answer is no, and it decides the whole data model
+   - "Late fee capped at base cost or at what they actually pay?"
+
+3. HOW I FOUND THE CLASSES
+   Nouns: vehicle, rate, rental, customer, discount, late fee, invoice.
+   Capability table first (day 4's move):
+                    rent  charge  load
+     Bike             Y     .      .
+     Car              Y     .      .
+     Electric Car     Y     Y      .
+     Truck            Y     .      Y
+
+   Bike and Car differ only by a NUMBER -> instances of one Vehicle class.
+   Electric Car and Truck carry METHODS nothing else has -> those earn classes.
+   A refrigerated truck needs BOTH, which is why they're separate protocols
+   rather than one hierarchy — it just picks up two.
+
+4. ASSUMPTIONS
+   - One vehicle per row; no fleet of identical cars.
+   - Discounts each compute against base cost, then sum.
+   - A rental captures its terms at rent time.
+
+5. THE DESIGN I REJECTED
+   "Reading vehicle.rate_per_day when the invoice is printed. That means
+    raising a rate silently reprices every in-progress rental. Same bug as
+    mutating a room's price and repricing past bookings."
+
+6. THE DESIGN + PRINCIPLE NAMES
+   "Discount rules behind one amount_off(rental) contract in a list —
+    OPEN/CLOSED, 20 more rules are 20 new files."
+   "Charge and load as separate protocols — INTERFACE SEGREGATION, so a Car
+    has no load method at all rather than one that throws."
+   "Clock and Notifier injected — DEPENDENCY INVERSION, so the reminder is
+    testable without waiting a day or sending mail."
+   "The invoice is its own function — SINGLE RESPONSIBILITY, JSON later is a
+    second function and the money path doesn't move."
+
+7. LIMITS I'D VOLUNTEER
+   - "Rental is frozen and return_vehicle swaps a new one into the list, so
+      anyone holding the old reference sees stale data. The alternative is
+      mutation, which keeps references consistent but loses the safety."
+   - "The already-rented check must be a real interval overlap once we allow
+      advance bookings — new_start < existing_end AND existing_start < new_end.
+      A one-sided comparison blocks a free month."
+
+═══════════════════════════════════════════════════════════════════════════
 """
 
 from dataclasses import dataclass, field

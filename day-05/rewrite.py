@@ -1,8 +1,63 @@
-"""Day 5 — interview-grade rewrite.
+"""Day 5 — Library Lending. Interview-grade rewrite.
 
-Your Clock/Notifier inversion is kept exactly as you built it — that part was right.
-What changed: rule 2 implemented, the max-loans boundary, the reminder firing on
-one day instead of forever, and asserts that actually read the notifier.
+═══════════════════════════════════════════════════════════════════════════
+INTERVIEW WALKTHROUGH — what you say out loud, in order
+═══════════════════════════════════════════════════════════════════════════
+
+1. READ-BACK (~20s)
+   "Members borrow books for 14 days, late fees at 5/day capped at 200,
+    reminders two days before due, max 3 loans. The requirement shaping my
+    design is that the tests must run instantly and must not send email."
+
+2. CLARIFYING QUESTIONS
+   - "Is the reminder exactly two days before, or two days or fewer?"
+     -> 'or fewer' means it fires every day forever; worth pinning down
+   - "One copy per title, or multiple copies?"
+   - "Do I control the clock, or should I assume real time?"
+     -> asking this out loud IS the DIP answer
+
+3. HOW I FOUND THE CLASSES
+   Nouns: member, book, loan, due date, late fee, reminder.
+     book   -> title/author, data                  -> Book
+     member -> name/email, data                    -> Member
+     loan   -> the noun that actually matters      -> Loan
+   "Checkout" is a VERB. The thing that persists is a Loan. Naming it after
+   the verb is how people end up without the noun.
+
+   Then the two nouns that aren't in the statement but are in requirement 8:
+     "today"        -> Clock
+     "sends email"  -> Notifier
+   Anything that reaches outside the process becomes an injected dependency.
+
+4. ASSUMPTIONS
+   - Loan period, fee rate, cap and max-loans are policy values, injected —
+     which also answers the per-tier requirement for free.
+   - Reminder fires on exactly one day.
+   - Fees computed at return time from the return date passed in.
+
+5. THE DESIGN I REJECTED
+   "Calling date.today() inside the fee calculation and constructing an SMTP
+    client inside the service. It runs fine — that's what makes it dangerous.
+    It's simply untestable: assert 5 needs a book 137 days late, and I'm not
+    waiting 137 days or emailing anyone from a test suite."
+
+6. THE DESIGN + PRINCIPLE NAME
+   "DEPENDENCY INVERSION. Normally the high-level LendingService would depend
+    on low-level things — the system clock, SMTP. Inverted, both depend on an
+    abstraction: Clock and Notifier. The service never learns which
+    implementation it got."
+   "The tell that it's right: my test and production take the IDENTICAL path
+    through LendingService. Nothing is test-only."
+
+7. LIMITS I'D VOLUNTEER
+   - "Loans are a list in memory. Postgres would mean a LoanRepository
+      protocol — same inversion, third dependency."
+   - "FixedClock in production would be silent and catastrophic: nothing
+      ever goes overdue. The wiring is the one line tests never execute."
+   - "A rate change today reprices open loans. Contract terms should be
+      captured on the Loan at checkout."
+
+═══════════════════════════════════════════════════════════════════════════
 """
 
 from dataclasses import dataclass, field

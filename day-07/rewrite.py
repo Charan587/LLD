@@ -1,11 +1,58 @@
-"""Day 7 — interview-grade rewrite.
+"""Day 7 — Ride Fare Estimation. Interview-grade rewrite.
 
-Your Strategy structure was right and is kept: an algorithm base, four
-implementations with a uniform calculate(ride), and the service owning
-surge and the floor.
+═══════════════════════════════════════════════════════════════════════════
+INTERVIEW WALKTHROUGH — what you say out loud, in order
+═══════════════════════════════════════════════════════════════════════════
 
-Changed: the four bugs that never got a chance to surface, airport read
-off the ride, a breakdown, and the four asserts that weren't written.
+1. READ-BACK (~20s)
+   "Four ways to price a ride, exactly one applies per ride, chosen by ride
+    type with airport overriding. Then surge, then a minimum fare floor."
+
+2. CLARIFYING QUESTIONS
+   - "Does surge apply before or after the minimum?" -> changes the answer
+   - "Is the minimum global, or per city?"
+   - "Should the algorithm know about surge, or is that the service's job?"
+     -> asking this is how you show you've spotted the boundary
+
+3. HOW I FOUND THE CLASSES
+   Nouns: ride, distance, duration, ride type, fare, surge, minimum, receipt.
+     ride      -> data                                  -> Ride (frozen)
+     ride type -> fixed small set                       -> enum
+     the four ways to compute a fare -> ONE CLASS EACH, uniform signature
+     the result -> not a float; it needs the algorithm name and whether the
+                   minimum kicked in                    -> Fare value object
+
+   THE BOUNDARY, said out loud: an algorithm computes ITS OWN number and
+   nothing else. Surge and the floor belong to the service. If the algorithm
+   knew about them, I couldn't test the raw fare, and every one of the 15
+   future algorithms would have to remember to apply them.
+
+4. ASSUMPTIONS
+   - Airport beats ride type; precedence is explicit, not statement order.
+   - Surge multiplies the base fare, then the floor applies.
+   - is_airport lives on the Ride, not passed alongside it.
+
+5. THE DESIGN I REJECTED
+   "An if/elif on ride type inside the fare service. Fifteen more algorithms
+    means fifteen more branches in a method that already works, and the
+    pricing team can't edit my service anyway."
+
+6. THE DESIGN + PATTERN NAME
+   "STRATEGY — a family of interchangeable algorithms behind one interface,
+    selected at runtime. What varies is how a fare is computed; what stays
+    the same is that a fare is computed, then surged, then floored."
+   "It delivers OPEN/CLOSED: algorithm 16 is a new class and one registry
+    row, and FareService never changes."
+
+7. LIMITS I'D VOLUNTEER
+   - "Surge as a mutable attribute on the service is shared state — a quote
+      shown at 09:00 and charged at 09:05 would disagree with no record why.
+      I'd pass it per quote, or inject a SurgeProvider."
+   - "A waiting charge isn't a new Strategy — it's additive. That wants a
+      list of surcharges, or a Decorator if it must wrap the algorithm."
+   - "Per-city minimums are a dict on the service, not a new algorithm."
+
+═══════════════════════════════════════════════════════════════════════════
 """
 
 from dataclasses import dataclass

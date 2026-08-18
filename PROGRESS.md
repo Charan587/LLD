@@ -17,7 +17,8 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | W2 | Doesn't model the nouns in the problem statement; primitives where objects belong | Day 1 | **improving** — D2 modelled correctly; now over-models (classes where data suffices) |
 | W9 | Puts a rule on the wrong object (`is_dead` in `Game`, not `Character`) | Day 2 | **open** |
 | W10 | **Submits without running the file** | Day 3 | **REOPENED (D7).** Clean D4-D6. D7: `if __name__ == "main":` — silent `exit 0`, zero asserts ran, submitted with empty output. Fix: print at the end and *look*; use a deliberate `assert False` to prove tests execute |
-| W17 | Builds the pattern correctly, never names it | Day 2 | **open — 5 occurrences.** D7 file never contains the word "Strategy" despite the spec requiring it |
+| W17 | Builds the pattern correctly, never names it | Day 2 | **improving** — D8 named "factory" in the file (first time in 6 days), but not *which* factory, and misattributed Strategy |
+| W18 | Invents thresholds the spec never asked for | Day 7 | **open — 2 consecutive.** D7 `max_amount` gating the card fee; D8 `min_amount` gating the gateway fee. Both times the single test used the exact value where the invention is invisible |
 | W1c | Asserts absence-of-exception (`raises(...) is None`) instead of the returned value | Day 4 | **open** |
 | W13 | **Tests the part he's confident about, skips the part he's unsure of** | Day 4 | **open — regressed.** D5 9/10; D6 **4/15**, and all three bugs sat in the unwritten 11 |
 | W14 | One field doing two jobs / terms not captured at event time | Day 4 | **split verdict.** D6 got requirement 10 right *by construction* (first time) — then reintroduced the bug in the same file via `return_date` (due → actual). 5 appearances: D2 `baseHealth`, D4 `amount_used`, D5 loan policy, D6 req-10 ✓, D6 `return_date` ✗ |
@@ -45,6 +46,7 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | 05 | Library Lending | DIP | Python | 2 | 4 | 4 | 3 | 3 | **16** / 25 |
 | 06 | Vehicle Rental | consolidation | Python | 2 | 4 | 4 | 2 | 3 | **15** / 25 |
 | 07 | Ride Fare Estimation | Strategy | Python | 1 | 3 | 3 | 2 | 1 | **10** / 25 |
+| 08 | Payment Gateway Integration | Factory Method + Abstract Factory | Python | 2 | 3 | 3 | 2 | 3 | **13** / 25 |
 
 Java for day 1: not submitted.
 
@@ -604,6 +606,73 @@ Requirement 4: **an algorithm must not know about surge or the minimum fare.** A
 - Selection logic (asserts 10-11, with the airport override) deliberately seeds day 8's Factory Method.
 
 Numbers pre-computed: 120 / 50 / 175 / 500 base, 262.5 and 75 with surge. Whole assert block writable before any class exists.
+
+---
+
+---
+
+## Day 08 — Payment Gateway Integration
+
+- **Date issued:** 2026-08-14
+- **Topic:** Factory Method + Abstract Factory (paired)
+- **Problem:** `day-08/PROBLEM.md`
+- **Status:** reviewed 2026-08-18. Python only. **Ran clean and printed** — W10 closed again.
+- **Submitted (verbatim):** `day-08/solution.submitted.py` · **Review:** `day-08/REVIEW.md` · **Rewrite:** `day-08/rewrite.py` (passes)
+
+### Landed
+
+Both patterns **structurally correct**: `Factory` base with three `create_*`, concrete `RazorPayFactory`/`StripeFactory`, `FactoryGateWay` with a name→factory map and `get_factory` raising on unknown. Added an `add()` registration method unprompted. **Refund mismatch raises** — requirement 8 and the direct correction from the D7 grill, both landed. Double-refund guard added unprompted. **First time in six days a pattern name appears in the file.**
+
+### Probe output, as-is
+
+```
+razorpay: create_client() -> TypeError: missing 3 required positional arguments
+stripe:   create_client() -> TypeError: missing 4 required positional arguments
+charge(0)    -> id pay_rzp_1, amount 0, fee None
+charge(-100) -> id pay_rzp_2, amount -100, fee None
+razorpay charge(49999) -> fee None     (spec: 999.98)
+stripe refund id -> rfnd_ch_stripe_1   (spec: re_ch_stripe_1)
+cashfree create_client() -> None
+```
+
+### Defects
+
+1. **`create_client` has a different signature per factory** — the flaw that undercuts the pattern. Cannot write `get_gateway(name).create_client()` generically; caller must know the concrete type, which is what the factory existed to prevent. Also leaks requirement 4: the app doesn't name `RazorPayClient` but must know Razorpay's fee rate and prefix. **A factory that must be told how to build its own product isn't a factory.** Day 4's uniform-signature lesson from a new angle.
+2. **`min_amount` invented** — spec says 2% unconditionally. **Second consecutive invented threshold** (D7 `max_amount` gating the card fee). Both times the single test used the exact value where the invention is invisible. Manufactures a `None` in a money path.
+3. **Stripe refund prefix `rfnd_` should be `re_`** — copy-paste from `RazorPayRefund`, guard updated, prefix forgotten. **Identical shape to D7's `PerMinute` using `ride.km`.**
+4. **Verifier signs `payment.id`, not the payload** — a real webhook arrives as bytes before you have a Payment object. Asserts 7/8 unwritten, so unnoticed.
+5. **No amount validation** — `charge(-100)` creates a payment and burns an id. **W5, sixth appearance.**
+6. `Verifier.verifier` (class is a noun, method should be a verb); base methods missing `self`; `PaymentClient.charge` annotated `-> None` while returning `Payment`; `Payment()` valid with all fields `None`.
+
+### Asserts — ~8 of 12
+
+Missing: 4 (zero/negative), 7 and 8 (both verifiers), 11 (family end-to-end). 12 half-done — `CashFreeFactory` methods all `pass`, `add()` called *after* the print, nothing asserted. **Assert 11 is the one that would have caught the Stripe prefix bug** in one loop.
+
+### Patterns — half credit
+
+Wrote *"ISP, factory and startergy"*. **"Factory" is right and is real progress (W17 first movement).** But: didn't distinguish **which** factory — the entire point of pairing them — and **Strategy isn't in play** (two gateways are two families of collaborating objects, not two algorithms for one job). Reaching for the most recent pattern name is worth watching.
+
+### Deliverable added this session (his request)
+
+**Interview walkthrough blocks added to every rewrite, days 1-8.** Fixed 7-section format: read-back · 3 clarifying questions · how the nouns became classes (with the trap for that day) · assumptions · the rejected design in quotes · the design + pattern/principle names · limits to volunteer unprompted. All eight rewrites re-verified passing after the edit. Use the same block on every future rewrite.
+
+### Structure — the pairing is the lesson
+
+**Part 1 is Factory Method**: ask for `"razorpay"`, get something chargeable, calling code never names a class. **Part 2 forces Abstract Factory** by adding two more objects per gateway (webhook verifier, refund processor) that must be *consistent with each other*. Requirement 7 states it directly: it must be impossible to end up with Stripe's client and Razorpay's verifier.
+
+The intended realisation: Factory Method makes **one** thing; when three things must match, one-at-a-time creation can't guarantee it. Requirement 3 asks him to state exactly what the second pattern adds that the first can't do.
+
+Domain chosen deliberately — gateway integration is his actual work (fintech), and family-mismatch is a real production bug there, not a toy.
+
+### Targeting
+
+- **W10 (reopened on D7)** — closing section is now about *this*: "run it and look for the printed line; `exit 0` is not tests passed", citing the `"main"` typo verbatim.
+- **W17 (5 occurrences)** — requirement 3 asks for **both** names plus the difference; the spec calls out that "Strategy" never appeared in the D7 file.
+- **Silent failure (D7 grill Q1, where he argued the wrong side)** — requirement 8 makes a mismatched refund *raise*, and assert 10 says explicitly "not `False`, not `None`". Spec cites the D4 gift-card trace and the D7 `algorithm in dict` bug as precedent. Requirement 6 deliberately contrasts: the verifier *should* return a bool, because that one is a genuine yes/no.
+- **W13** — 12 numbered asserts, fresh state per block.
+- Assert 12 requires defining a third gateway inside the asserts, proving the OCP claim rather than stating it.
+
+Numbers pre-computed: Razorpay 2% → 1000 paise; Stripe 2.9% + 300 → 1750 paise on a 50000-paise charge. Independent per-gateway id counters (assert 3) catch shared-state mistakes.
 
 ---
 

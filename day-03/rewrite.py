@@ -1,8 +1,67 @@
-"""Day 3 — interview-grade rewrite.
+"""Day 3 — Shopping Cart Checkout. Interview-grade rewrite.
 
-Your structure was close. Two things changed everything:
-  1. a discount returns the AMOUNT OFF, not a new total  -> they now stack
-  2. the receipt is its own function                     -> JSON later costs nothing
+═══════════════════════════════════════════════════════════════════════════
+INTERVIEW WALKTHROUGH — what you say out loud, in order
+═══════════════════════════════════════════════════════════════════════════
+
+1. READ-BACK (~20s)
+   "A cart of line items. Three discounts all apply at once, each computed
+    against the subtotal, then tax on what's left, then a receipt. The two
+    things I'm designing around are the 30 more discounts and the JSON
+    receipt."
+
+2. CLARIFYING QUESTIONS
+   - "Do discounts stack against the original subtotal, or against a running
+      total?" -> changes every number
+   - "What happens if stacked discounts exceed the subtotal — can the bill
+      go negative?" -> the one people miss
+   - "Is the receipt format likely to change, or is text final?"
+
+3. HOW I FOUND THE CLASSES
+   Nouns: cart, line item, product, price, quantity, category, discount,
+          tax, receipt, customer.
+     product   -> name/price/category, no behaviour   -> data
+     line item -> product + quantity                  -> LineItem
+     cart      -> holds line items. THAT IS ALL.      -> Cart
+     discount  -> carries a RULE                      -> class per rule
+     receipt   -> a rendering of a computed result    -> its own function
+     customer  -> needed for the member discount      -> Customer on the Cart
+
+   THE KEY QUESTION I ask myself: "what IS a cart?" A cart is a collection
+   of line items. It does not know tax law, marketing promotions, or what a
+   receipt looks like. Those are three separate jobs.
+
+4. ASSUMPTIONS
+   - Each discount computes against the original subtotal, then they sum.
+   - Total discount is capped at the subtotal — the bill never goes negative.
+   - Money rounded to 2dp only at the end.
+
+5. THE DESIGN I REJECTED
+   "Putting subtotal, discounts, tax and receipt formatting all on Cart. It
+    reads fine until you ask who files the next ticket: product team for
+    cart contents, marketing for discounts, finance for tax, mobile for JSON.
+    Four teams editing one class is four reasons to change."
+   "I also rejected discounts returning the new total instead of the amount
+    off — three discounts each claiming 'the total is X' can't be combined
+    by any operator."
+
+6. THE DESIGN + PRINCIPLE NAMES
+   "Discounts are objects behind one amount_off(cart) contract, held in a
+    list — that's OPEN/CLOSED, so discount 31 is a new file and checkout
+    never changes."
+   "The receipt is a separate function, not a Cart method — that's SINGLE
+    RESPONSIBILITY. A cart changes when what it holds changes; a receipt
+    changes when the output format changes."
+   "They're different principles: OCP is about adding without editing, SRP
+    is about separating things that change for different reasons."
+
+7. LIMITS I'D VOLUNTEER
+   - "Floats for money. Production wants Decimal or integer paise."
+   - "Discount order doesn't matter here because they all hit the subtotal.
+      If marketing wants 'apply after other discounts', I'd need an explicit
+      ordering, and I'd push back on that requirement first."
+
+═══════════════════════════════════════════════════════════════════════════
 """
 
 from dataclasses import dataclass, field

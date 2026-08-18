@@ -1,8 +1,63 @@
-"""Day 4 — interview-grade rewrite.
+"""Day 4 — Payment Methods. Interview-grade rewrite.
 
-Your capability split was right and it is kept exactly as you had it.
-What changed: validation at the boundary, refundable balance actually
-decremented, fee() returns the FEE (not the total), and cancel().
+═══════════════════════════════════════════════════════════════════════════
+INTERVIEW WALKTHROUGH — what you say out loud, in order
+═══════════════════════════════════════════════════════════════════════════
+
+1. READ-BACK (~20s)
+   "Four payment methods with different fees, and — this is the important
+    part — different CAPABILITIES. Cards refund and recur, UPI refunds,
+    gift cards and COD only pay. And I get handed a mixed list to refund."
+
+2. CLARIFYING QUESTIONS
+   - "When you say a gift card can't be refunded — is that never, or
+      manually outside this system?"
+   - "Should refund_all fail the whole batch on one bad entry, or process
+      what it can?"
+   - "Does a payment method know its own balance, or is that upstream?"
+
+3. HOW I FOUND THE CLASSES — tabulate, then cut by column
+              pay   refund   recurring
+   Card        Y      Y         Y
+   UPI         Y      Y         .
+   GiftCard    Y      .         .
+   COD         Y      .         .
+
+   EVERY COLUMN IS AN INTERFACE. EVERY ROW IS A CLASS implementing the
+   columns it ticks. Which column is Y all the way down? Only pay. So
+   Payable is the only thing all four share — the table is telling me there
+   is no bigger common base.
+
+4. ASSUMPTIONS
+   - Amounts are positive; zero and negative raise, checked in one place.
+   - "Refundable" is what has been paid and not yet refunded — it decreases.
+     Total-ever-paid is a separate, append-only fact.
+   - Single-threaded.
+
+5. THE DESIGN I REJECTED
+   "One PaymentMethod base with all three methods. Then GiftCard.refund has
+    to do something, and every option is bad: raising means my refund loop
+    dies partway with real money already moved and no rollback; returning
+    False means the batch reports success while two customers never got paid.
+    The second is worse — a crash at least tells you."
+
+6. THE DESIGN + PRINCIPLE NAMES
+   "Three small interfaces instead of one fat one — that's INTERFACE
+    SEGREGATION. A gift card has no refund method at all, not one that
+    throws."
+   "That gives me LISKOV for free: anything typed Refundable really can be
+    refunded, so refund_all filters by capability and never special-cases a
+    class. The 'which methods support recurring' report becomes a filter on
+    the type instead of attempting a debit on everything to find out."
+
+7. LIMITS I'D VOLUNTEER
+   - "_refund lives on the shared base, so a gift card technically inherits
+      the machinery even though it doesn't expose it. Cleaner would be a
+      mixin only the refundable classes get."
+   - "isinstance against a Protocol only checks method names, not
+      signatures. A type checker catches the rest; runtime doesn't."
+
+═══════════════════════════════════════════════════════════════════════════
 """
 
 from typing import Protocol, runtime_checkable

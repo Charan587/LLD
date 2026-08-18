@@ -169,8 +169,15 @@ The last block adds a sixteenth algorithm as a nested class plus one dict assign
 ## Grill
 
 1. `algorithm in self.algorithms` was always `False`, so the code silently ignored an argument. **Name the general category of bug** where a wrong answer is worse than a crash, and give one more example from your own past six days.
+wrong answer is better than crash because lets say a uber booked with wrong price is okay it will be for multiple custoner sunless its checked but if it crashes they it would be a news.
+so in the last six days i dont remebrr any 
 2. My `quote()` returns a `Fare` object; yours returns a float. **Name two things** the object buys — one of which made assert 7 possible.
+The object has more data which requires in assert such as algo name , minimum applied or not without checking booking values also again and again in a single fare. which serves as source of truth even through base price of booking is changed in future
 3. `Ride` is frozen in my rewrite. Requirement 6 says the algorithm can be swapped at runtime. **Is that a contradiction?** What exactly is being swapped?
+Ride is frozen fare changes ride will be same 
 4. Requirement: a *per-city* minimum fare. **Where does it go** — on the algorithm, on the service, on the ride, or somewhere else? Justify with a principle.
+create new algo, add new field in ride class for city and write conditions in bookiing
 5. My `FareService` holds `surge` as a mutable attribute. **Argue that's wrong**, and say what you'd pass instead.
+It should be mutuabke only . because surge depends on conditions. okay assumne its wrng and iw ill always pass 1.10 because to increase revenue 
 6. A waiting charge is added on top of the fare. **Is that a new Strategy, or something else?** If something else, name the pattern it wants.
+waiting charge is just a field in fare just add in fare. if you want waiting chage per vehicle then add in booking and a new function

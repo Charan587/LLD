@@ -1,10 +1,60 @@
-"""Day 2 — interview-grade rewrite. Compare against solution.submitted.py.
+"""Day 2 — Combat System. Interview-grade rewrite.
 
-The composition call was right. What changes here:
-  - data-only subclasses become instances (Warrior/Mage/Sword/Plate were classes with no behavior)
-  - Character owns its own death rule instead of Game inferring it from dict membership
-  - current_health separated from max_health
-  - no Game registry — it wasn't asked for, and it made equip() unreachable without one
+═══════════════════════════════════════════════════════════════════════════
+INTERVIEW WALKTHROUGH — what you say out loud, in order
+═══════════════════════════════════════════════════════════════════════════
+
+1. READ-BACK (~20s)
+   "Characters with health and attack power, carrying a weapon and armor.
+    Damage is attack plus weapon bonus, minus armor, floored at zero. The
+    part I want to confirm: weapons and armor swap mid-fight."
+
+2. CLARIFYING QUESTIONS
+   - "Can a character swap equipment at runtime, or is loadout fixed at
+      creation?" -> this is THE question; it eliminates one whole design
+   - "Who adds new weapons — engineers, or designers with a config file?"
+   - "Does armor ever heal, or is 0 the floor?"
+
+3. HOW I FOUND THE CLASSES
+   Nouns: character, weapon, armor, health, attack, damage.
+     character -> has state and behaviour              -> Character (class)
+     weapon    -> name + a number, no behaviour        -> DATA, one class, N instances
+     armor     -> same                                 -> DATA
+   Circle the verbs: attack, equip, take damage, die.
+   Boundary words: "floored at 0", "0 or less is dead" -> write those as
+   rules before coding: max(0, incoming - defense), health <= 0.
+
+   THE TEST for weapon-as-class vs weapon-as-data:
+     does the subclass override any behaviour? No -> it's data.
+     Sword and Bow differ by an int. A dagger that doubles damage from
+     behind carries a RULE, so that one earns a class.
+
+4. ASSUMPTIONS
+   - A character starts with Fists and no armor.
+   - Damage is deterministic; no randomness, so tests can assert exactly.
+   - Dead characters are inert: they cannot attack or be attacked.
+
+5. THE DESIGN I REJECTED
+   "SwordWarrior, BowWarrior, PlateArcher — subclassing per combination.
+    3 characters x 4 weapons x 3 armors is 36 classes, and one new weapon
+    adds 9 more. But the real reason I rejected it is correctness, not
+    volume: a class is fixed at construction. A SwordWarrior picking up a
+    bow would have to become a different object, so I'd copy every field by
+    hand and lose object identity — anything else holding a reference to
+    that character is now tracking someone who no longer exists."
+
+6. THE DESIGN + PRINCIPLE NAMES
+   "COMPOSITION OVER INHERITANCE — model has-a, not is-a, when the
+    relationship changes at runtime. That also gives me OPEN/CLOSED: 40 more
+    weapons are 40 config rows and zero edits to any character class."
+
+7. LIMITS I'D VOLUNTEER
+   - "Two equipment slots as two fields. At five slots I'd move to a
+      dict[Slot, Equipment] so a shield doesn't mean a new method."
+   - "is_dead lives on Character deliberately — it's a fact about a
+      character, not about whichever collection is holding it."
+
+═══════════════════════════════════════════════════════════════════════════
 """
 
 from dataclasses import dataclass
