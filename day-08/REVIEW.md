@@ -187,8 +187,14 @@ The sentence to have ready:
 ## Grill
 
 1. I said "a factory that needs to be told how to build its own product isn't a factory." **Where should the fee rates live** if finance changes them weekly and can't deploy code?
+fee rate should be stored in config or made default while init and can change we can do like that 
 2. Your `FactoryGateWay` stores factory **classes** and instantiates on lookup; mine stores classes too but `get_gateway` returns a fresh instance each call. **Name one bug** that appears if it returned a cached singleton instead.
+so if another product want to start payment then he should continue and cant start as we are givem them cached
 3. Requirement: sandbox mode where all three objects are fakes. **How many files change** in my rewrite, and which pattern does it exercise?
+sandbox mode need dip principle
 4. You added a double-refund guard I never asked for. **Argue it's wrong** — then say what convinces you it's right.
+so it checks if it has been refeunded ror not but we can easily check refund id is present or not . so just for storing data we can use that field
 5. `verify` returns a bool but `refund` raises. **State the rule** that decides which, and give one case from days 1-7 where you picked wrong.
+verify is used only for cheking but for refund we are doing a operation . rule may be open closed?
 6. Two app servers run this. **Which assert in my file starts failing**, and what's the fix that doesn't involve locks?
+refund fails ?

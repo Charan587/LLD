@@ -24,12 +24,12 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | W2 | Doesn't model the nouns in the problem statement; primitives where objects belong | Day 1 | **improving** — D2 modelled correctly; now over-models (classes where data suffices) |
 | W9 | Puts a rule on the wrong object (`is_dead` in `Game`, not `Character`) | Day 2 | **open** |
 | W10 | **Submits without running the file** | Day 3 | **REOPENED (D7).** Clean D4-D6. D7: `if __name__ == "main":` — silent `exit 0`, zero asserts ran, submitted with empty output. Fix: print at the end and *look*; use a deliberate `assert False` to prove tests execute |
-| W17 | Builds the pattern correctly, never names it | Day 2 | **improving** — D8 named "factory" in the file (first time in 6 days), but not *which* factory, and misattributed Strategy |
+| W17 | Builds the pattern correctly, never names it | Day 2 | **MET (D9)** — "builder pattern, single responsibility", correct and unprompted. Re-check on D10. |
 | W18 | Invents thresholds the spec never asked for | Day 7 | **open — 2 consecutive.** D7 `max_amount` gating the card fee; D8 `min_amount` gating the gateway fee. Both times the single test used the exact value where the invention is invisible |
 | W1c | Asserts absence-of-exception (`raises(...) is None`) instead of the returned value | Day 4 | **open** |
 | W13 | **Tests the part he's confident about, skips the part he's unsure of** | Day 4 | **open — regressed.** D5 9/10; D6 **4/15**, and all three bugs sat in the unwritten 11 |
 | W14 | One field doing two jobs / terms not captured at event time | Day 4 | **split verdict.** D6 got requirement 10 right *by construction* (first time) — then reintroduced the bug in the same file via `return_date` (due → actual). 5 appearances: D2 `baseHealth`, D4 `amount_used`, D5 loan policy, D6 req-10 ✓, D6 `return_date` ✗ |
-| W11 | Deletes failing asserts instead of debugging them (D3 v4→v5) | Day 3 | **open** |
+| W11 | Deletes/comments out awkward asserts instead of debugging them | Day 3 | **open — 2 sightings.** D3 deleted 2 of 3; D9 commented out assert 12 rather than reaching for the `raises()` helper he'd already written three times |
 | W12 | Long stretches with no execution (D3: 20 min / ~2000 bytes between runs) | Day 3 | **open** |
 | W3 | Enumerates boundary cases instead of deriving them; misses an orientation | Day 1 | **open** |
 | W4 | `>=` vs `>` confusion at limits/boundaries | Day 1 | **open — 5 consecutive days.** D1 back-to-back, D3 ₹1000, D4 fee gate, D5 max-loans + reminder. Habit to build: say aloud whether the limit itself is allowed, then pick the operator |
@@ -54,6 +54,7 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | 06 | Vehicle Rental | consolidation | Python | 2 | 4 | 4 | 2 | 3 | **15** / 25 |
 | 07 | Ride Fare Estimation | Strategy | Python | 1 | 3 | 3 | 2 | 1 | **10** / 25 |
 | 08 | Payment Gateway Integration | Factory Method + Abstract Factory | Python | 2 | 3 | 3 | 2 | 3 | **13** / 25 |
+| 09 | SQL Query Builder | Builder | Python | 3 | 4 | 4 | 3 | 4 | **18** / 25 |
 
 Java for day 1: not submitted.
 
@@ -684,6 +685,118 @@ Domain chosen deliberately — gateway integration is his actual work (fintech),
 - Assert 12 requires defining a third gateway inside the asserts, proving the OCP claim rather than stating it.
 
 Numbers pre-computed: Razorpay 2% → 1000 paise; Stripe 2.9% + 300 → 1750 paise on a 50000-paise charge. Independent per-gateway id counters (assert 3) catch shared-state mistakes.
+
+---
+
+---
+
+## Day 09 — SQL Query Builder
+
+- **Date issued:** 2026-08-21
+- **Topic:** Builder
+- **Problem:** `day-09/PROBLEM.md`
+- **Status:** reviewed 2026-08-25. Python only. **Ran clean and printed.**
+- **Submitted (verbatim):** `day-09/solution.submitted.py` · **Review:** `day-09/REVIEW.md` · **Rewrite:** `day-09/rewrite.py` (passes) · **Notes:** `notes/builder.md`
+
+### BEST DAY OF THE NINE — 18/25 vs a previous best of 16
+
+Four long-standing items landed at once:
+
+1. **The `offset(0)` trap avoided** — used `is not None`, not truthiness. Assert 10 renders `OFFSET 0`. **First boundary he has got right in eight days of planting them.**
+2. **Pattern named correctly in the file** — *"patterns used is builder pattern, single responsibility"*. → **W17 effectively met.**
+3. **Validation hoisted to a module-level function** called from two setters — day 4's `_check_amount` lesson applied unprompted, six days later.
+4. **Rejected design is substantive** — `*args` for where, join-type param, direction inferred from trailing arg. First time the section reads like real consideration rather than a description of what he built.
+
+**11 of 14 asserts** — best ratio to date.
+
+### Probe output, as-is
+
+```
+limit(0)   -> NO ERROR                          (spec: error)
+limit(-1)  -> raises: only greater than zero is accepted
+offset(0)  -> SELECT * FROM u LIMIT 5 OFFSET 0  (correct)
+validator(0) -> NO ERROR  <-- but the message says "only greater than zero"
+so: SELECT * FROM users LIMIT 0
+
+SELECT * FROM users u INNER JOIN orders o ON u.id = o.b  <-- second join vanished
+repr: 'SELECT  FROM users'                      (select() with no args)
+```
+
+### Defects
+
+1. **`limit(0)` accepted — and the error message contradicts the code.** `if s < 0` implements `>= 0` while the message says *"only greater than zero"*. **The message is a free assertion of intent and disagreed with the implementation from the moment it was written** — spottable by reading, no test needed. Worth reusing as a review heuristic.
+2. **Root cause: one validator, two different rules.** `LIMIT 0` is meaningless; `OFFSET 0` is ordinary (pagination page 1). Sharing the helper forced them to be identical. **Hoisting was right; hoisting into ONE function was one step too far. DRY applies to duplicated rules, not to code that looks similar.** This is `>` vs `>=` for the 8th day but arrived a new way — a comparison *reused* where it didn't apply, not one written wrong.
+3. **Joins as `dict[table, condition]`** — same table joined twice keeps only the last. Order was fine (dicts are insertion-ordered); uniqueness was the problem. A join is a record, not a key-value pair.
+4. **Assert 12 commented out** — `# assert Sql().select("id","name").build()`. Would have failed because a bare `assert` can't test an exception; he has written a `raises()` helper on D4, D6 and D8 and didn't reach for it here. → **W11, second sighting** (D3 edit history showed deleting 2 of 3 failing asserts).
+5. Asserts 13 and 14 absent. **Assert 13 is exactly where the `limit(0)` bug lives.**
+6. `select()` with no args → `'SELECT  FROM users'` (double space, invalid SQL).
+7. Implemented the thing he listed as a *rejected* design (`where(*args)`).
+8. `cols` public while everything else is `_`-prefixed; `_order_by` as a dict keyed `'col'`/`'d'`; `order_by` accepts any direction string.
+
+### Assert 14 passes by luck, not design
+
+Never tested, and correct — because `build()` returns a **string**, and strings are immutable. Had it returned an object holding `self._wheres`, builder and query would share one list. **A builder must hand back a snapshot, not a window.**
+
+### Weakness movement
+
+- **W4** — first boundary *caught* in 8 days (`offset(0)`), but `limit(0)` missed via a shared validator. Reclassify: the failure mode is shifting from "writes the wrong operator" to "reuses a correct operator in the wrong place."
+- **W17** — met. Pattern named correctly and unprompted.
+- **W5** — validation present and hoisted. Genuine improvement.
+- **W11** — reappeared as commenting out rather than deleting.
+
+### Why this domain
+
+Output is a **string**, so every assert is exact and unarguable — no floating point, no invented thresholds available. Chosen partly because **W18 (invents thresholds the spec never asked for)** has fired two days running; a spec with an exact output format leaves nothing to invent.
+
+Builder is genuinely needed here rather than decorative: eight optional parts, cross-field validation that can only run at `build()` (offset requires limit), and call order that must not matter.
+
+### The two planted traps
+
+- **Assert 10 — `offset(0)` must render `OFFSET 0`.** `if self._offset:` is falsy for zero, so a valid clause silently vanishes. This is **W4's boundary blindness** in a new costume — not `>` vs `>=` this time, but truthiness vs `is not None`. Seventh consecutive day a boundary has been planted.
+- **Assert 14 — build, mutate, assert the first string unchanged.** Catches `build()` returning something still wired to the builder's internals. Ties to **W14** (captured-at-event-time), fifth appearance, now applied to a produced value rather than a stored record.
+
+### Targeting
+
+- **W13** — 14 numbered asserts, "paste all in, delete none", fresh builder per block.
+- **W17** — requirement 3 asks for the pattern name *plus* what it solves that a constructor cannot. Spec calls out that D8 said "factory" without saying which.
+- **W5 (6 appearances)** — rule 3 enumerates every invalid value explicitly, and rule 4 adds a cross-field rule.
+- **W15** — fresh builder per assert block.
+- Requirement 2 asks him to write out the telescoping constructor call site by hand, so the pain is on the page rather than described.
+
+---
+
+---
+
+## Day 10 — Connection Pool
+
+- **Date issued:** 2026-08-26
+- **Topic:** Singleton (and why interviewers push back on it)
+- **Problem:** `day-10/PROBLEM.md`
+- **Status:** issued, awaiting submission
+
+### Structure — the pattern is the trap
+
+**Part 1** asks for a textbook singleton, and a connection pool is one of the few genuinely legitimate uses (two pools = twice the DB connections). **Part 2 then adds four requirements that a singleton cannot satisfy**, so the costs are felt rather than described:
+
+| Req | Objection it forces |
+|---|---|
+| 8 | initialization arguments on the second `get_instance` call are silently ignored |
+| 9 | test pollution — global mutable state, asserts interfere (**W15**) |
+| 10 | can't substitute a fake — untestable collaborators |
+| 11 | hidden dependency — `OrderService` needs a pool and its signature doesn't say so |
+| 13 | two pools must coexist — the requirement singletons make impossible |
+
+The "later" clause (read replica + primary, pool per tenant) says the same thing in business terms, and the spec tells him to read it twice before committing.
+
+**Assert 13 is the hinge.** A correct singleton makes it unsatisfiable. The intended realisation: the legitimate part is *"the app should share one pool"*, and the way to get that is to **create one at startup and inject it** (day 5's DIP), not to make the class enforce its own uniqueness. Requirement 11 is the same point from the reader's side.
+
+### Targeting
+
+- **W11 (2 sightings — D3 deleted, D9 commented out)** — the spec names it directly: "if one is awkward to express, that's the day's lesson, not a reason to comment it out", and reminds him he has written a `raises()` helper three times.
+- **W15** — requirement 9 makes test isolation an explicit deliverable rather than a side quality.
+- **W4 (8 days)** — assert 5, the boundary at exactly `max_size`: third acquire succeeds, fourth fails.
+- **W5** — `max_size <= 0`, double release, and releasing an unissued connection.
+- **W17 (met on D9)** — must name the pattern *and* two concrete costs tied to requirement numbers, not "it's global state".
 
 ---
 
