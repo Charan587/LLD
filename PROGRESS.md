@@ -24,7 +24,8 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | W2 | Doesn't model the nouns in the problem statement; primitives where objects belong | Day 1 | **improving** — D2 modelled correctly; now over-models (classes where data suffices) |
 | W9 | Puts a rule on the wrong object (`is_dead` in `Game`, not `Character`) | Day 2 | **open** |
 | W10 | **Submits without running the file** | Day 3 | **REOPENED (D7).** Clean D4-D6. D7: `if __name__ == "main":` — silent `exit 0`, zero asserts ran, submitted with empty output. Fix: print at the end and *look*; use a deliberate `assert False` to prove tests execute |
-| W17 | Builds the pattern correctly, never names it | Day 2 | **MET (D9)** — "builder pattern, single responsibility", correct and unprompted. Re-check on D10. |
+| W17 | Builds the pattern correctly, never names it | Day 2 | **REGRESSED (D10)** — D9 met it; D10's file never says "Singleton", no costs, no rejected design, despite him saying all of it in the design chat. Not a knowledge gap — a transcription gap. Make it the first thing written, not the last |
+| W19 | Asserts the collaborator instead of the thing under test | Day 6 | **open — 2 sightings.** D6 `assert attack() == True`; D10 `raises(order.pool.acquire)` reaching past `OrderService` |
 | W18 | Invents thresholds the spec never asked for | Day 7 | **open — 2 consecutive.** D7 `max_amount` gating the card fee; D8 `min_amount` gating the gateway fee. Both times the single test used the exact value where the invention is invisible |
 | W1c | Asserts absence-of-exception (`raises(...) is None`) instead of the returned value | Day 4 | **open** |
 | W13 | **Tests the part he's confident about, skips the part he's unsure of** | Day 4 | **open — regressed.** D5 9/10; D6 **4/15**, and all three bugs sat in the unwritten 11 |
@@ -55,6 +56,7 @@ Live list. Each entry names the day it appeared and stays here until two consecu
 | 07 | Ride Fare Estimation | Strategy | Python | 1 | 3 | 3 | 2 | 1 | **10** / 25 |
 | 08 | Payment Gateway Integration | Factory Method + Abstract Factory | Python | 2 | 3 | 3 | 2 | 3 | **13** / 25 |
 | 09 | SQL Query Builder | Builder | Python | 3 | 4 | 4 | 3 | 4 | **18** / 25 |
+| 10 | Connection Pool | Singleton (+ its costs) | Python | 3 | 4 | 4 | 3 | 1 | **15** / 25 |
 
 Java for day 1: not submitted.
 
@@ -772,7 +774,41 @@ Builder is genuinely needed here rather than decorative: eight optional parts, c
 - **Date issued:** 2026-08-26
 - **Topic:** Singleton (and why interviewers push back on it)
 - **Problem:** `day-10/PROBLEM.md`
-- **Status:** issued, awaiting submission
+- **Status:** reviewed 2026-08-30. Python only. **Ran clean and printed.**
+- **Submitted (verbatim):** `day-10/solution.submitted.py` · **Review:** `day-10/REVIEW.md` · **Rewrite:** `day-10/rewrite.py` (passes) · **Notes:** `notes/singleton.md`
+
+### He made the right architectural call — the day's actual point
+
+Constructor stayed **public** (so assert 13 is expressible at all); `OrderService(pool)` takes the pool (req 11); `AlwaysFailConnectionPool` exists, doesn't inherit, and is injected (third use of the fake-collaborator move after `FakeNotifier`/`FixedClock`); `max_size <= 0` validated unprompted; assert 1 uses `is`; boundary in assert 5 correct. **Pool logic is entirely correct.**
+
+The gap is evidence and articulation, not design.
+
+### Probe output, as-is
+
+```
+OrderService methods: ['pool']     <-- no save(); assert 12 tested the POOL
+raises(lambda: undefined_thing)  -> True     (bare except catches everything)
+ConnectionPool(0) -> max_size should be positive, got 0      (works, never asserted)
+small: available 0 in_use 2 / big: available 5 in_use 0      (never asserted)
+a fresh get_instance() now reports available=1, not 3        (req 9 unaddressed)
+asked for 10, got max_size=3     (correct behaviour, never asserted)
+```
+
+### Defects
+
+1. **`OrderService` has no `save()`** — it only stores the pool. Assert 12 is `raises(order.pool.acquire)`, which reaches *past* the service and calls the fake directly. **It would pass with no `OrderService` in the file.** Same reflex as D6's `assert attack() == True` — assert on the nearest reachable thing instead of the thing under test.
+2. **`raises()` uses bare `except:`** — a `NameError`, `ZeroDivisionError` or wrong-arity `TypeError` is indistinguishable from the error under test. **This is the exact root cause of D6's tuple bug.** Fix: `except exc` with `exc=Exception` defaulted, passed per call.
+3. **Assert 11 asserts `conn1 is conn2`** — true for any singleton, i.e. assert 1 again. Never checks `max_size == 3`, which was the requirement-8 observation. The explanatory comment sits five lines away, on the two-pools line.
+4. **Assert 13 asserts `small is not big`** — identity, not independence. Never acquires from one and checks the other. **Both 11 and 13 test the easy half.**
+5. **Asserts 9 and 10 absent.** Validation is correct and unexercised — same as D4, where every fee was right and no assert checked one.
+6. **Requirement 9 unaddressed** — asserts share one mutated singleton. Doesn't fail only because nothing after line 118 checks counts.
+7. Unused `defaultdict` import; `Connection` dataclass the pool never uses (`_free` holds strings); `AlwaysFailConnectionPool.release(self)` missing the `conn` param; no threading sentence (spec asked for one line).
+
+### Communication regression — W17
+
+**The file never says "Singleton."** No pattern name, no two costs, no rejected design. Requirement 3 asked for all three, and **he reached every one of these answers out loud during the design chat** — they didn't reach the file.
+
+Day 9 named Builder correctly and unprompted with the best rejected-design section to date. Score 4 → 1.
 
 ### Structure — the pattern is the trap
 
