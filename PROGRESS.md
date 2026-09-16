@@ -836,6 +836,44 @@ The "later" clause (read replica + primary, pool per tenant) says the same thing
 
 ---
 
+---
+
+## Day 11 — Report Export (Consolidation)
+
+- **Date issued:** 2026-09-11
+- **Topic:** consolidation of days 7-10 — Builder + Factory Method + Strategy, plus DIP
+- **Problem:** `day-11/PROBLEM.md`
+- **Time box:** 60 min
+- **Status:** issued, awaiting submission
+
+### What each part recombines
+
+| Part | Pattern | From |
+|---|---|---|
+| fluent report assembly, validation at `build()` | Builder | D9 |
+| `format("csv")` → the right renderer | Factory Method | D8 |
+| three interchangeable renderers behind one `render(report)` | Strategy | D7 |
+| injected mailer, asserted via a fake | DIP | D5 |
+
+Each is doing real work rather than co-existing: the factory *selects* the strategy, the builder *produces the value* the strategy consumes, and the service *composes* both behind an injected boundary.
+
+### The process fix at the top of the spec
+
+**"Write the docstring first, not last."** D10's regression (worked out every Singleton cost aloud, none reached the file) vs D9's best-ever section written during design. Making it the opening instruction rather than item 3 of the requirements. This is the concrete countermeasure for **W17**.
+
+### Targeting
+
+- **W19 (2 sightings — D6, D10)** — assert 14 states it directly: assert what the *mailer received*, not that the renderer works. Spec names the D10 mistake.
+- **W8/boundary (D7's surge lesson)** — requirement 8 + assert 12: a renderer must not sort. Tested by handing it deliberately mis-ordered rows.
+- **W4 (9 days)** — assert 3: `min_amount(1000)` keeps a row of exactly 1000. Dev's row exists solely for this.
+- **W11 (2 sightings)** — "delete none, comment out none", plus the instruction to use a typed `raises` after D10's bare `except:`.
+- **W14** — assert 13: build twice, mutate between, first result unchanged (D9's assert 14, which passed by luck because strings are immutable; here `build()` returns an object, so it must be handled deliberately).
+- Assert 15 requires registering a fourth format inside the assert block — proves OCP rather than claiming it.
+
+Exact expected CSV/table blocks given in the spec so the whole assert block is writable before any class exists.
+
+---
+
 ## Next
 
 Day 1 Java still open (optional — the modelling lesson was already extracted via the grill).

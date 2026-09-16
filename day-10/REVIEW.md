@@ -212,8 +212,14 @@ The walkthrough block carries the requirement-8 decision as a comment on `get_in
 ## Grill
 
 1. My `save()` uses `try/finally`. **Write the two-line sequence** that drains a pool to zero if the `finally` is missing.
+It because we arent adding back the connection back to pool
 2. `reset_instance()` exists only for tests. **Name one production bug** it makes possible, and say whether you'd ship it.
+I would rather not ship. bceuase at a time at production many prpcess are running. if i reset eveyrthing would fall aprat which are running
 3. I made `Pool` a Protocol with two methods. `ConnectionPool` has five. **Why is the Protocol smaller**, and which principle is that?
+Connection Pool has its own methods. and pool has only needed methods where next people who wirte pool can extend them
 4. Requirement: `acquire()` should wait up to 2 seconds for a free connection instead of failing. **What has to change**, and what does it do to your asserts?
+acquire waiting for seconds helps other process to feeup conn when its full so other process can do their job instead of failing. for asssert . I will add timer?
 5. You used `Connection()` as the never-issued object. I used the string `"conn-from-nowhere"`. **Which is the better test, and why?**
+Yours is better to test.  mine would be best to get different type of connection like sql , psql and other
 6. A singleton is sometimes genuinely right. **Name a case** where you'd keep `get_instance()` as the only door in, and say what makes it different from the pool.
+making get instance only door . keeps code more safer from exploitation
